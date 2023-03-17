@@ -1,4 +1,6 @@
-.vscode\**
+.vscode/**
+.vs/**
+compile_flags.txt
 **.d
 **.o
 imgui.ini

@@ -46,7 +46,7 @@ enum material_kind {
 };
 
 struct Material {
-	s32 kind;
+	u32 kind;
 	v3 albedo;
 };
 
@@ -58,58 +58,61 @@ struct Ray {
 struct Hit {
 	f32 t;
 	v3 n;
-	Material *material;
+	u32 material_index;
 };
 
 struct Sphere {
-	Material *material;
-	f32 radius;
 	v3 center;
+	f32 radius;
+	u32 material_index;
 };
 
 struct Plane {
-	Material *material;
+	u32 material_index;
 	f32 z;
 };
 
 struct Scene {
-	Plane **planes;
-	Sphere **spheres;
+	Plane *planes;
+	u32 num_planes;
 
-	s32 num_planes;
-	s32 num_spheres;
+	Sphere *spheres;
+	u32 num_spheres;
+
+	Material *materials;
+	u32 num_materials;
 
 	Camera camera;
 };
 
 struct Tile {
-	s32 x;
-	s32 y;
-	s32 w;
-	s32 h;
+	u32 x;
+	u32 y;
+	u32 w;
+	u32 h;
 };
 
 struct WorkQueue {
 	Tile *tiles;
-	s32 tile_count;
+	u32 tile_count;
 
-	std::atomic<s32> tile_index;
+	std::atomic<u32> tile_index;
 };
 
-Material *make_matt(v3 albedo);
-Material *make_metallic(v3 albedo);
+Material make_matt(v3 albedo);
+Material make_metallic(v3 albedo);
 
-Sphere *make_sphere(v3 center, f32 radius, Material *mat);
-Plane *make_plane(f32 z, Material *mat);
+Sphere make_sphere(v3 center, f32 radius, u32 material_index);
+Plane make_plane(f32 z, u32 material_index);
 
-Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, s32 width, s32 height);
+Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, u32 width, u32 height);
 
 f32 clamp(f32 v, f32 l, f32 h);
 u32 rgb_to_hex(v3 v);
 
-void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, s32 w, s32 h);
+void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h);
 
-void raytrace_data(Scene *scene, u32 *data, s32 w, s32 h, s32 cores);
-u32 *raytrace(Scene *scene, s32 w, s32 h, s32 cores);
+void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores);
+u32 *raytrace(Scene *scene, u32 w, u32 h, u32 cores);
 
 #endif

@@ -1,3 +1,7 @@
+default:
+	make -C core
+	make -C cli
+
 all:
 	make -C core
 	make -C cli

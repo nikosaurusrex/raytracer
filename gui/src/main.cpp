@@ -55,19 +55,31 @@ int main(int argc, char *argv[]) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    s32 cores = 8;
-    s32 w = 1;
-    s32 h = 1;
-    s32 n = 1;
+    u32 cores = 8;
+    u32 w = 1;
+    u32 h = 1;
+    u32 n = 10;
 
     Scene scene;
-    scene.spheres = (Sphere **) malloc(n * sizeof(Sphere));
-    scene.spheres[0] = make_sphere({0, 0, 1}, 1, make_matt(vec3(0.9, 0.4, 0.7)));
-    scene.num_spheres = 1;
+    scene.materials = (Material *) malloc((n+1) * sizeof(Material));
+	scene.materials[0] = make_matt(vec3(0.5));
 
-    Plane *floor = make_plane(0, make_matt(vec3(0.5)));
+	for (u32 i = 1; i < n+1; ++i) {
+		scene.materials[i] = make_matt(vec3(0.9, 0.4, 0.7));
+	}
+
+	scene.num_materials = 2;
+
+    Plane floor = make_plane(0, 0);
 	scene.planes = &floor;
     scene.num_planes = 1;
+
+    scene.spheres = (Sphere *) malloc(n * sizeof(Sphere));
+	for (u32 i = 0; i < n+0; ++i) {
+		scene.spheres[i] = make_sphere({0, 0, 1}, 1, 1);
+	}
+
+    scene.num_spheres = 1;
 
     v3 cam_pos = { 0, 12, 5 };
     v3 look_at = { 0, 0, 1 };
@@ -83,8 +95,6 @@ int main(int argc, char *argv[]) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // ImGui::ShowDemoWindow();
-
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
             ImGui::Begin("Image");
@@ -98,17 +108,42 @@ int main(int argc, char *argv[]) {
             ImGui::PopStyleVar();
         }
 
+		// ImGui::ShowDemoWindow();
+
         if (show_config) { 
             ImGui::Begin("Config");
 
-            for (s32 i = 0; i < scene.num_spheres; ++i) {
-                Sphere *sp = scene.spheres[i];
+			ImGui::SliderInt("Threads", (s32 *) &cores, 0, 20);
+			ImGui::SliderInt("Spheres", (s32 *) &scene.num_spheres, 0, n);
+			ImGui::SliderInt("Materials", (s32 *) &scene.num_materials, 0, n+1);
 
-                ImGui::Text("Sphere %d", i+1);
-                ImGui::ColorEdit4("Albedo", (float*)&sp->material->albedo, ImGuiColorEditFlags_NoInputs);
+			for (s32 i = 0; i < scene.num_materials; ++i) {
+				Material *mat = &scene.materials[i];
+
+                ImGui::Text("Material %d", i);
                 
-                ImGui::RadioButton("Matt", &sp->material->kind, 0); ImGui::SameLine();
-                ImGui::RadioButton("Metallic", &sp->material->kind, 1);
+				ImGui::PushID(i);
+
+                ImGui::RadioButton("Matt", (s32 *) &mat->kind, 0); ImGui::SameLine();
+                ImGui::RadioButton("Metallic", (s32 *) &mat->kind, 1);
+
+                ImGui::ColorEdit4("Albedo", (float*)&mat->albedo, ImGuiColorEditFlags_NoInputs);
+
+				ImGui::PopID();
+			}
+
+            for (s32 i = 0; i < scene.num_spheres; ++i) {
+                Sphere *sp = &scene.spheres[i];
+
+				ImGui::PushID(i);
+
+                ImGui::Text("Sphere %d", i);
+
+				ImGui::DragFloat3("Pos", (f32 *) &sp->center, 0.1f, -10.0f, 10.0f);
+				ImGui::DragFloat("Radius", &sp->radius, 0.05f, 0.1f, 5.0f);
+				ImGui::SliderInt("Material", (s32 *)&sp->material_index, 0, scene.num_materials - 1);
+
+				ImGui::PopID();
             }
 
             if (ImGui::Button("Update")) {
@@ -119,8 +154,6 @@ int main(int argc, char *argv[]) {
                 data = raytrace(&scene, w, h, cores);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
             }
-
-            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
             ImGui::End();
         }
