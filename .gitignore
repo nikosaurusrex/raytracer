@@ -1,0 +1,7 @@
+.vscode\**
+**.d
+**.o
+imgui.ini
+*.exe
+*.lib
+*.png
