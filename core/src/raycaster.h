@@ -1,7 +1,6 @@
 #ifndef RAYCASTER_H
 #define RAYCASTER_H
 
-#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>

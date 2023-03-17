@@ -10,12 +10,13 @@ SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRC_FILES))
 DEP_FILES = $(OBJ_FILES:.o=.d)
 
-ifeq ($(UNAME_S), Darwin) #APPLE
-	LIB = raytracer.a
-endif
-
 ifeq ($(OS), Windows_NT)
 	LIB = raytracer.lib
+else
+	UNAME_S = $(shell uname -s)
+	ifeq ($(UNAME_S), Darwin) #APPLE
+		LIB = raytracer.a
+	endif
 endif
 
 all: $(LIB)

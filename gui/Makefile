@@ -1,15 +1,5 @@
 CXX = clang++
 
-ifeq ($(UNAME_S), Darwin) #APPLE
-	GLFW_INCLUDE = `pkg-config --cflags glfw3`
-	GLFW_LIBS = `pkg-config --static --libs glfw3`
-
-	CXXFLAGS = -O3 -std=c++17 -MMD $(GLFW_INCLUDE)
-	LDFLAGS = $(GLFW_LIBS) -framework OpenGL -framework Cocoa -framework IOKit
-	EXEC = ../raytracer_gui
-	LDFLAGS += ../core/raytracer.a
-endif
-
 ifeq ($(OS), Windows_NT)
 	GLFW_INCLUDE = -Iextern/include
 	GLFW_LIBS = -Lextern/libs -lglfw3_mt
@@ -18,6 +8,17 @@ ifeq ($(OS), Windows_NT)
 	LDFLAGS = $(GLFW_LIBS) -lgdi32 -lopengl32 -lshell32  -limm32
 	EXEC = ../raytracer_gui.exe
 	LDFLAGS += ../core/raytracer.lib
+else
+	UNAME_S = $(shell uname -s)
+	ifeq ($(UNAME_S), Darwin) #APPLE
+		GLFW_INCLUDE = `pkg-config --cflags glfw3`
+		GLFW_LIBS = `pkg-config --static --libs glfw3`
+
+		CXXFLAGS = -O3 -std=c++17 -MMD $(GLFW_INCLUDE)
+		LDFLAGS = $(GLFW_LIBS) -framework OpenGL -framework Cocoa -framework IOKit
+		EXEC = ../raytracer_gui
+		LDFLAGS += ../core/raytracer.a
+	endif
 endif
 
 CXXFLAGS += -I../core/src
