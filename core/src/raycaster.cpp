@@ -9,7 +9,19 @@
 #define MAX_DIST 200
 #define PI 3.1415926535f
 
+#ifdef _WIN64
 #pragma intrinsic(__rdtsc)
+
+u64 get_cpu_time() {
+	return __rdtsc();
+}
+
+#else
+
+u64 get_cpu_time() {
+}
+
+#endif
 
 f32 clamp(f32 v, f32 l, f32 h) {
     if (v < l) return l;
@@ -342,7 +354,7 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
 
 	/* TODO: apparently clock does measure CPU time on non-Windows? */
     clock_t before = clock();
-	u64 before_cpu_time = __rdtsc();
+	u64 before_cpu_time = get_cpu_time();
     
     std::vector<std::thread> threads;
 
@@ -367,7 +379,7 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
     }
 
     clock_t after = clock();
-	u64 after_cpu_time = __rdtsc();
+	u64 after_cpu_time = get_cpu_time();
 	clock_t diff = after - before;
 	u64 diff_cpu_time = after_cpu_time - before_cpu_time;
 
