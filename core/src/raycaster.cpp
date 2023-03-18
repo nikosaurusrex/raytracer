@@ -57,37 +57,6 @@ v3 linear_to_srgb(v3 v) {
 	);
 }
 
-f32 randomf() {
-	return (f32)rand() / (f32)RAND_MAX;
-}
-
-f32 randomf2() {
-	return 2.0f * randomf() - 1.0f;
-}
-
-v3 random_vec3() {
-    v3 v;
-
-    do {
-        v = 2.0f * vec3(randomf(), randomf(), randomf()) - vec3(1.0);
-    } while (length2(v) >= 1.0f);
-
-    return v;
-}
-
-f32 reflectance(f32 cosine, f32 ref_idx) {
-    auto r0 = (1 - ref_idx) / (1 + ref_idx);
-    r0 = r0 * r0;
-    return r0 + (1 - r0) * pow((1 - cosine), 5);
-}
-
-v3 refract(v3 uv, v3 n, double etai_over_etat) {
-    auto cos_theta = fmin(dot(-uv, n), 1.0);
-    v3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
-    v3 r_out_parallel = -sqrt(fabs(1.0 - length2(r_out_perp))) * n;
-    return r_out_perp + r_out_parallel;
-}
-
 Material make_matt(v3 albedo) {
     Material mat;
 
@@ -151,25 +120,35 @@ Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, u32
 	return camera;
 }
 
-Ray camera_get_ray(Camera *camera, f32 s, f32 t) {
-	v3 rd = camera->lens_radius * random_vec3();
-	v3 offset = camera->u * rd.x + camera->v * rd.y;
+Ray camera_get_ray(Camera *camera, f32 s, f32 t, Random *random) {
+	lane_v3 cam_pos = lane_v3_from_v3(camera->pos);
+	lane_v3 cam_u = lane_v3_from_v3(camera->u);
+	lane_v3 cam_v = lane_v3_from_v3(camera->v);
+	lane_v3 cam_llc = lane_v3_from_v3(camera->llc);
+	lane_v3 cam_vert = lane_v3_from_v3(camera->vert);
+	lane_v3 cam_hori = lane_v3_from_v3(camera->hori);
+
+	lane_v3 rd = lane_vec3(camera->lens_radius) * random_vec3_lane(random);
+	lane_v3 offset = cam_u * rd.x + cam_v * rd.y;
+
+	lane_f32 lane_s = lane_f32_create(s);
+	lane_f32 lane_t = lane_f32_create(t);
 
 	Ray ray;
-	ray.origin = camera->pos + offset;
-	ray.dir = camera->llc + s*camera->hori + t*camera->vert - camera->pos - offset;
+	ray.origin = cam_pos + offset;
+	ray.dir = cam_llc + lane_s*cam_hori + lane_t*cam_vert - cam_pos - offset;
 	return ray;
 }
 
-bool scatter(Material material, Ray *ray, v3 p, v3 n, v3 *attenuation) {
+bool scatter(Material material, Ray *ray, lane_v3 p, lane_v3 n, lane_v3 *attenuation, Random *random) {
+	*attenuation = material.albedo;
+
     switch (material.kind) {
 		case MATT: {
-			v3 target = p + n + random_vec3();
+			v3 target = p + n + random_vec3(random);
 
 			ray->origin = p;
 			ray->dir = normalize(target - p);
-
-			*attenuation = material.albedo;
 
 			return true;
 		}
@@ -184,25 +163,7 @@ bool scatter(Material material, Ray *ray, v3 p, v3 n, v3 *attenuation) {
 			return dot(ray->dir, n) > 0;
 		}
         case DIALECTRIC: {
-            *attenuation = vec3(1.0f);
-            f32 ir = 1.5f;
-            bool front_face = dot(ray->dir, n) < 0;
-            f32 refraction_ratio = front_face ? (1.0 / ir) : ir;
-
-            f32 cos_theta = fmin(dot(-ray->dir, n), 1.0);
-            f32 sin_theta = sqrtf(1.0 - cos_theta * cos_theta);
-
-            bool cannot_refract = refraction_ratio * sin_theta > 1.0;
-            v3 direction;
-
-            if (cannot_refract || reflectance(cos_theta, refraction_ratio) > randomf())
-                direction = reflect(ray->dir, n);
-            else
-                direction = refract(ray->dir, n, refraction_ratio);
-
-            ray->origin = p;
-            ray->dir = direction;
-            return true;
+        	return false;
         }
     }
     return false;
@@ -282,15 +243,11 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
 			u32 xx = x + tile->x;
 			u32 yy = y + tile->y;
 
-            if (yy == 4294967295) {
-                printf("%u %u %d %d\n", y, tile->y, y, tile->y);
-            }
-
         	for (u32 i = 0; i < rays_per_pixel; ++i) {
 				f32 u = (f32)xx / (f32)w;
 				f32 v = (f32)yy / (f32)h;
 
-                Ray ray = camera_get_ray(camera, u, v);
+                Ray ray = camera_get_ray(camera, u, v, &tile->random);
 
                 v3 attenuation = vec3(1.0f);
                 Ray scattered;
@@ -305,7 +262,7 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
                         Material material = scene->materials[hit.material_index];
 
                         v3 catt;
-                        if (!scatter(material, &ray, p, hit.n, &catt)) {
+                        if (!scatter(material, &ray, p, hit.n, &catt, &tile->random)) {
                             attenuation = vec3(0);
                             break;
                         }
@@ -358,7 +315,7 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
                 th = h - ty;
             }
 
-            queue.tiles[y * tiles_x + x] = {tx, ty, tw, th};
+            queue.tiles[y * tiles_x + x] = {{(u32) rand()}, tx, ty, tw, th};
         }
     }
 

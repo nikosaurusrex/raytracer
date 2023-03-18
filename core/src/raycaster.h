@@ -8,7 +8,7 @@
 
 #include <atomic>
 
-#include "vec.h"
+#include "ray_math.h"
 
 #define ARR_LEN(x) (sizeof(x)/sizeof(*x))
 
@@ -50,14 +50,14 @@ struct Material {
 };
 
 struct Ray {
-	v3 origin;
-	v3 dir;
+	lane_v3 origin;
+	lane_v3 dir;
 };
 
 struct Hit {
-	f32 t;
-	v3 n;
-	u32 material_index;
+	lane_f32 t;
+	lane_v3 n;
+	lane_u32 material_index;
 };
 
 struct Sphere {
@@ -85,6 +85,7 @@ struct Scene {
 };
 
 struct Tile {
+	Random random;
 	u32 x;
 	u32 y;
 	u32 w;
