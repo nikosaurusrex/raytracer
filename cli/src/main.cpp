@@ -18,14 +18,14 @@ f32 random_float() {
 }
 
 int main(int argc, char *argv[]) {
-	u32 num_threads = 20;
+	u32 num_threads = 8;
 	if (argc > 1) {
 		num_threads = atoi(argv[1]);
 	}
 
     Scene scene;
 
-    u32 n = 400;
+    u32 n = 200;
     u32 i = 0;
     
     scene.spheres = (Sphere *) malloc(n * sizeof(Sphere));
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 	scene.planes = &floor;
     scene.num_planes = 1;
 
-	u32 w = 1280, h = 720;
+	u32 w = 800, h = 600;
     v3 cam_pos = { 0, 12, 5 };
     v3 look_at = { 0, 0, 1 };
     scene.camera = make_camera(25, cam_pos, look_at, length(cam_pos - look_at), 0.15, w, h);

@@ -19,6 +19,10 @@ u64 get_cpu_time() {
 #else
 
 u64 get_cpu_time() {
+	timespec spec;
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+
+	return spec.tv_nsec;
 }
 
 #endif
