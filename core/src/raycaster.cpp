@@ -1,6 +1,7 @@
 #include "raycaster.h"
 
 #include <stdlib.h>
+#include <time.h>
 #include <thread>
 #include <vector>
 
@@ -16,16 +17,44 @@ f32 clamp(f32 v, f32 l, f32 h) {
 
 // RGB -> BGR
 u32 rgb_to_hex(v3 v) {
-    f32 b = clamp(v.b, 0, 1);
-    f32 g = clamp(v.g, 0, 1);
-    f32 r = clamp(v.r, 0, 1);
-
     u32 hex = 0xFF << 24;
-    hex |= (u32)(b * 255.9) << 16;
-    hex |= (u32)(g * 255.9) << 8;
-    hex |= (u32)(r * 255.9);
+    hex |= (u32)(v.b * 255.9) << 16;
+    hex |= (u32)(v.g * 255.9) << 8;
+    hex |= (u32)(v.r * 255.9);
 
     return hex;
+}
+
+v3 clamp(v3 v, f32 l, f32 h) {
+    f32 b = clamp(v.b, l, h);
+    f32 g = clamp(v.g, l, h);
+    f32 r = clamp(v.r, l, h);
+    
+    return vec3(r, g, b);
+}
+
+f32 linear_to_srgb(f32 l) {
+	if (l < 0.0f) { 
+		l = 0.0f;
+	}
+	if (l > 1.0f) {
+		l = 1.0f;
+	}
+
+   f32 s = l * 12.92f;
+   if (l > 0.0031308f) {
+       s = 1.055f * pow(l, 1.0f / 2.4f) - 0.055f;
+   }
+
+   return s;
+}
+
+v3 linear_to_srgb(v3 v) {
+	return vec3(
+		linear_to_srgb(v.x),
+		linear_to_srgb(v.y),
+		linear_to_srgb(v.z)
+	);
 }
 
 f32 randomf() {
@@ -267,6 +296,8 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
                 Ray scattered;
 
                 for (u32 i = 0; i < bounces; ++i) {
+					queue->total_bounces++;
+
                     Hit hit = scan_hit(scene, &ray);
                     v3 p = ray.origin + hit.t * ray.dir;
 
@@ -285,16 +316,14 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
                     }
                 }
 
-                /*
-                f32 t = 0.5f * (ray.dir.y + 1.0f);
-                v3 color = (1.0f - t) * vec3(1, 1, 1) + t * vec3(0.5f, 0.7f, 1.0f);*/
-
                 output = output + attenuation * vec3(0.5f, 0.7f, 1.0f);
 			}
 
             output = output / rays_per_pixel;
-            output = pow(output, 0.5f);
 
+			output = clamp(output, 0.0f, 1.0f);
+			output = linear_to_srgb(output);
+			
             data[yy * w + xx] = rgb_to_hex(output);
         }
     }
@@ -332,6 +361,9 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
             queue.tiles[y * tiles_x + x] = {tx, ty, tw, th};
         }
     }
+
+	/* TODO: apparently clock does measure CPU time on non-Windows? */
+    clock_t before = clock();
     
     std::vector<std::thread> threads;
 
@@ -354,6 +386,15 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
     for (auto &t : threads) {
         t.join();
     }
+
+    clock_t after = clock();
+	clock_t diff = after - before;
+
+	u64 bounces = queue.total_bounces;
+	putc('\n', stdout);
+	printf("Raycasting took %ld ms\n", diff);
+    printf("Total bounces %llu\n", bounces);
+    printf("Performance %fms/bounce\n", (f64)diff / (f64)bounces);
 }
 
 u32 *raytrace(Scene *scene, u32 w, u32 h, u32 cores) {

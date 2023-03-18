@@ -31,10 +31,10 @@ int main(int argc, char *argv[]) {
     scene.spheres = (Sphere *) malloc(n * sizeof(Sphere));
     scene.materials = (Material *) malloc(n * sizeof(Material));
    
-    for (s32 j = -11; j < 10; ++j) {
-        for (s32 k = -13; k < 4; ++k) {
-    /*for (s32 j = -2; j < 2; ++j) {
-        for (s32 k = -3; k < 1; ++k) {*/
+   /* for (s32 j = -11; j < 10; ++j) {
+        for (s32 k = -13; k < 4; ++k) {*/
+   	for (s32 j = -2; j < 2; ++j) {
+        for (s32 k = -3; k < 1; ++k) {
             v3 center = vec3(j * 2.5 + random_float() * 0.5, k*3.5 + random_float(), 0.6f);
 
             Material mat;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 	scene.planes = &floor;
     scene.num_planes = 1;
 
-	u32 w = 1920, h = 1080;
+	u32 w = 1280, h = 720;
     v3 cam_pos = { 0, 12, 5 };
     v3 look_at = { 0, 0, 1 };
     scene.camera = make_camera(25, cam_pos, look_at, length(cam_pos - look_at), 0.15, w, h);

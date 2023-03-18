@@ -96,6 +96,7 @@ struct WorkQueue {
 	u32 tile_count;
 
 	std::atomic<u32> tile_index;
+	std::atomic<u64> total_bounces;
 };
 
 Material make_matt(v3 albedo);
