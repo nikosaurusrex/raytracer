@@ -44,9 +44,13 @@ enum material_kind {
 	DIALECTRIC
 };
 
+struct Texture {
+};
+
 struct Material {
 	u32 kind;
 	v3 albedo;
+	Texture *texture;
 };
 
 struct Ray {
@@ -102,6 +106,9 @@ struct WorkQueue {
 
 Material make_matt(v3 albedo);
 Material make_metallic(v3 albedo);
+
+Material make_matt(v3 albedo, Texture *tex);
+Material make_metallic(v3 albedo, Texture *tex);
 
 Sphere make_sphere(v3 center, f32 radius, u32 material_index);
 Plane make_plane(f32 z, u32 material_index);

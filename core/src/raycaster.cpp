@@ -57,20 +57,38 @@ v3 linear_to_srgb(v3 v) {
 	);
 }
 
+void map_sphere_uv(v3 p, f32 *u, f32 *v) {
+	f32 phi = atan2f(p.z, p.x);	
+	f32 theta = asinf(p.y);
+
+	*u = 1.0f - (phi + PI) / (2.0f * PI);
+	*v = (theta + PI / 2.0f) / PI;
+}
+
 Material make_matt(v3 albedo) {
+	return make_matt(albedo, 0);
+}
+
+Material make_metallic(v3 albedo) {
+	return make_metallic(albedo, 0);
+}
+
+Material make_matt(v3 albedo, Texture *tex) {
     Material mat;
 
     mat.kind = MATT;
     mat.albedo = albedo;
+    mat.texture = tex;
 
     return mat;
 }
 
-Material make_metallic(v3 albedo) {
+Material make_metallic(v3 albedo, Texture *tex) {
 	Material mat;
 
     mat.kind = METALLIC;
     mat.albedo = albedo;
+    mat.texture = tex;
 
     return mat;
 }
@@ -141,7 +159,6 @@ Ray camera_get_ray(Camera *camera, f32 s, f32 t, Random *random) {
 }
 
 bool scatter(Material material, Ray *ray, lane_v3 p, lane_v3 n, lane_v3 *attenuation, Random *random) {
-	*attenuation = material.albedo;
 
     switch (material.kind) {
 		case MATT: {
@@ -149,6 +166,8 @@ bool scatter(Material material, Ray *ray, lane_v3 p, lane_v3 n, lane_v3 *attenua
 
 			ray->origin = p;
 			ray->dir = normalize(target - p);
+			
+			*attenuation = material.albedo;
 
 			return true;
 		}
