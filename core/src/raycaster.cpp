@@ -1,7 +1,6 @@
 #include "raycaster.h"
 
 #include <stdlib.h>
-#include <time.h>
 #include <thread>
 #include <vector>
 
@@ -11,18 +10,29 @@
 
 #ifdef _WIN64
 #pragma intrinsic(__rdtsc)
+#include <time.h>
 
 u64 get_cpu_time() {
 	return __rdtsc();
 }
 
+u64 get_real_time() {
+	return clock();
+}
+
 #else
+#include <sys/time.h>
 
 u64 get_cpu_time() {
-	timespec spec;
-	clock_gettime(CLOCK_MONOTONIC, &spec);
+	return clock();
+}
 
-	return spec.tv_nsec;
+u64 get_real_time() {
+	struct timeval time;
+
+	gettimeofday(&time, 0);
+
+	return ((u64) time.tv_sec) * 1000 + (time.tv_usec / 1000);
 }
 
 #endif
@@ -156,6 +166,24 @@ Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, u32
 	return camera;
 }
 
+Camera make_camera_default(RayCastConfig *config) {
+    v3 cam_pos = { 0, 12, 5 };
+    v3 look_at = { 0, 0, 1 };
+
+    return make_camera(25, cam_pos, look_at, length(cam_pos - look_at), 0.15, config->width, config->height);
+}
+
+RayCastConfig ray_cast_config_default() {
+	RayCastConfig config;
+
+	config.cores = 1;
+	config.width = 400;
+	config.height = 300;
+	config.sky_color = vec3(0.5f, 0.7f, 1.0f);
+
+	return config;
+}
+
 Ray camera_get_ray(Camera *camera, f32 s, f32 t, Random *random) {
 	lane_v3 cam_pos = lane_v3_from_v3(camera->pos);
 	lane_v3 cam_u = lane_v3_from_v3(camera->u);
@@ -261,13 +289,17 @@ Hit scan_hit(Scene *scene, Ray *ray) {
     return hit;
 }
 
-void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
+void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config) {
     if (queue->tile_index >= queue->tile_count) {
         return;
     }
 
     Camera *camera = &scene->camera;
     Tile *tile = &queue->tiles[queue->tile_index];
+
+    u32 w = config->width;
+    u32 h = config->height;
+	v3 sky_color = config->sky_color;
 
     queue->tile_index++;
 
@@ -310,7 +342,7 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
                     }
                 }
 
-                output = output + attenuation * vec3(0.5f, 0.7f, 1.0f);
+                output = output + attenuation * sky_color;
 			}
 
             output = output / rays_per_pixel;
@@ -323,10 +355,12 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h) {
     }
 }
 
-void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
+void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
     WorkQueue queue;
     
-    u32 ts = w / cores;
+    u32 w = config->width;
+    u32 h = config->height;
+    u32 ts = w / config->cores;
 
     u32 tiles_x = (w + ts - 1) / ts;
     u32 tiles_y = (h + ts - 1) / ts;
@@ -356,15 +390,14 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
         }
     }
 
-	/* TODO: apparently clock does measure CPU time on non-Windows? */
-    clock_t before = clock();
+    u64 before = get_real_time();
 	u64 before_cpu_time = get_cpu_time();
     
     std::vector<std::thread> threads;
 
     auto loop = [&]() {
         while (queue.tile_index < queue.tile_count) {
-            raytrace_tile(&queue, scene, data, w, h);
+            raytrace_tile(&queue, scene, data, config);
 
             u32 percentage = (u32)((f32)(queue.tile_index + 0) / (f32)queue.tile_count * 100);
             printf("\rRaytrace %3d%%", percentage);
@@ -372,7 +405,7 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
         }
     };
 
-    for (u32 i = 0; i < cores; ++i) {
+    for (u32 i = 0; i < config->cores; ++i) {
         std::thread t(loop);
 
         threads.push_back(move(t));
@@ -382,23 +415,23 @@ void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores) {
         t.join();
     }
 
-    clock_t after = clock();
+    u64 after = get_real_time();
 	u64 after_cpu_time = get_cpu_time();
-	clock_t diff = after - before;
+	u64 diff = after - before;
 	u64 diff_cpu_time = after_cpu_time - before_cpu_time;
 
 	u64 bounces = queue.total_bounces;
 	putc('\n', stdout);
-	printf("Raycasting took %ld ms\n", diff);
+	printf("Raycasting took %llu ms\n", diff);
     printf("Total bounces %llu\n", bounces);
     printf("Performance %fms/bounce\n", (f64)diff / (f64)bounces);
     printf("Performance %fcycles/bounce\n", (f64)diff_cpu_time / (f64)bounces);
 }
 
-u32 *raytrace(Scene *scene, u32 w, u32 h, u32 cores) {
-    u32 *data = (u32 *)malloc(w * h * sizeof(u32));
+u32 *raytrace(Scene *scene, RayCastConfig *config) {
+    u32 *data = (u32 *)malloc(config->width * config->height * sizeof(u32));
 
-    raytrace_data(scene, data, w, h, cores);
+    raytrace_data(scene, data, config);
 
     return data;
 }

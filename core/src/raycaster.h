@@ -104,6 +104,13 @@ struct WorkQueue {
 	std::atomic<u64> total_bounces;
 };
 
+struct RayCastConfig {
+	u32 cores;
+	u32 width;
+	u32 height;
+	v3 sky_color;
+};
+
 Material make_matt(v3 albedo);
 Material make_metallic(v3 albedo);
 
@@ -113,14 +120,16 @@ Material make_metallic(v3 albedo, Texture *tex);
 Sphere make_sphere(v3 center, f32 radius, u32 material_index);
 Plane make_plane(f32 z, u32 material_index);
 
-Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, u32 width, u32 height);
+Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture);
+Camera make_camera_default(RayCastConfig *config);
+RayCastConfig ray_cast_config_default();
 
 f32 clamp(f32 v, f32 l, f32 h);
 u32 rgb_to_hex(v3 v);
 
-void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, u32 w, u32 h);
+void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config);
 
-void raytrace_data(Scene *scene, u32 *data, u32 w, u32 h, u32 cores);
-u32 *raytrace(Scene *scene, u32 w, u32 h, u32 cores);
+void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config);
+u32 *raytrace(Scene *scene, RayCastConfig *config);
 
 #endif

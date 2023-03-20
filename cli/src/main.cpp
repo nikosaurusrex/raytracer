@@ -6,11 +6,11 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-void file_mode(Scene *scene, u32 w, u32 h, u32 cores) {
-    u32 *data = raytrace(scene, w, h, cores);
+void file_mode(Scene *scene, RayCastConfig *config) {
+    u32 *data = raytrace(scene, config);
 
     stbi_flip_vertically_on_write(1);
-    stbi_write_png("out.png", w, h, 4, data, 4 * w);
+    stbi_write_png("out.png", config->width, config->height, 4, data, 4 * config->width);
 }
 
 f32 random_float() {
@@ -59,12 +59,13 @@ int main(int argc, char *argv[]) {
 	scene.planes = &floor;
     scene.num_planes = 1;
 
-	u32 w = 800, h = 600;
-    v3 cam_pos = { 0, 12, 5 };
-    v3 look_at = { 0, 0, 1 };
-    scene.camera = make_camera(25, cam_pos, look_at, length(cam_pos - look_at), 0.15, w, h);
+
+	RayCastConfig config = ray_cast_config_default();
+	config.cores = 8;
+
+    scene.camera = make_camera_default(&config);
     
-    file_mode(&scene, w, h, num_threads);
+    file_mode(&scene, &config);
 
     return 0;
 }
