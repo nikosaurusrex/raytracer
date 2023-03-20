@@ -120,7 +120,7 @@ Material make_metallic(v3 albedo, Texture *tex);
 Sphere make_sphere(v3 center, f32 radius, u32 material_index);
 Plane make_plane(f32 z, u32 material_index);
 
-Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture);
+Camera make_camera(f32 fov, v3 pos, v3 lookat, f32 focus_dist, f32 aperture, u32 width, u32 height);
 Camera make_camera_default(RayCastConfig *config);
 RayCastConfig ray_cast_config_default();
 

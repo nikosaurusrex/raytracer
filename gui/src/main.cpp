@@ -55,9 +55,8 @@ int main(int argc, char *argv[]) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    u32 cores = 8;
-    u32 w = 1;
-    u32 h = 1;
+    RayCastConfig config = ray_cast_config_default();
+    config.cores = 8;
     u32 n = 10;
 
     Scene scene;
@@ -83,6 +82,9 @@ int main(int argc, char *argv[]) {
 
     v3 cam_pos = { 0, 12, 5 };
     v3 look_at = { 0, 0, 1 };
+    f32 fov = 25;
+    f32 focus_dist = 10;
+    f32 aperture = 0.15;
 
     u32 *data = 0;
 
@@ -99,10 +101,10 @@ int main(int argc, char *argv[]) {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
             ImGui::Begin("Image");
 
-            w = ImGui::GetContentRegionMax().x;
-            h = ImGui::GetContentRegionMax().y;
+            config.width = ImGui::GetContentRegionMax().x;
+            config.height = ImGui::GetContentRegionMax().y;
 
-            ImGui::Image((void*)(intptr_t) texture, ImVec2((f32)w, (f32)h), ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::Image((void*)(intptr_t) texture, ImVec2((f32)config.width, (f32)config.height), ImVec2(0, 1), ImVec2(1, 0));
 
             ImGui::End();
             ImGui::PopStyleVar();
@@ -113,9 +115,15 @@ int main(int argc, char *argv[]) {
         if (show_config) { 
             ImGui::Begin("Config");
 
-			ImGui::SliderInt("Threads", (s32 *) &cores, 0, 20);
+			ImGui::SliderInt("Threads", (s32 *) &config.cores, 0, 20);
 			ImGui::SliderInt("Spheres", (s32 *) &scene.num_spheres, 0, n);
 			ImGui::SliderInt("Materials", (s32 *) &scene.num_materials, 0, n+1);
+            ImGui::ColorEdit4("Sky Color", (float*)&config.sky_color, ImGuiColorEditFlags_NoInputs);
+            ImGui::DragFloat3("Cam Pos", (f32 *) &cam_pos, 0.1f, -10.0f, 10.0f);
+            ImGui::DragFloat3("Look At", (f32 *) &look_at, 0.1f, -10.0f, 10.0f);
+            ImGui::DragFloat("FOV", &fov, 1.0f, 5.0f, 90.0f);
+            ImGui::DragFloat("Focus Dist", &focus_dist, 1.0f, 5.0f, 40.0f);
+            ImGui::DragFloat("Aperture", &aperture, 0.005f, 0.01f, 2.0f);
 
 			for (s32 i = 0; i < scene.num_materials; ++i) {
 				Material *mat = &scene.materials[i];
@@ -148,11 +156,11 @@ int main(int argc, char *argv[]) {
 
             if (ImGui::Button("Update")) {
 
-                scene.camera = make_camera(25, cam_pos, look_at, length(cam_pos - look_at), 0.15, w, h);
+                scene.camera = make_camera(fov, cam_pos, look_at, focus_dist, aperture, config.width, config.height);
 
                 free(data);
-                data = raytrace(&scene, w, h, cores);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                data = raytrace(&scene, &config);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, config.width, config.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
             }
 
             ImGui::End();
