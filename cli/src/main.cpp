@@ -61,7 +61,9 @@ int main(int argc, char *argv[]) {
 
 
 	RayCastConfig config = ray_cast_config_default();
-	config.cores = 8;
+	config.rays_per_pixel = 128;
+	config.max_bounces = 8;
+	config.cores = num_threads;
 
     scene.camera = make_camera_default(&config);
     

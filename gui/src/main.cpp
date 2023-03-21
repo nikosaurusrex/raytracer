@@ -124,6 +124,8 @@ int main(int argc, char *argv[]) {
             ImGui::DragFloat("FOV", &fov, 1.0f, 5.0f, 90.0f);
             ImGui::DragFloat("Focus Dist", &focus_dist, 1.0f, 5.0f, 40.0f);
             ImGui::DragFloat("Aperture", &aperture, 0.005f, 0.01f, 2.0f);
+            ImGui::DragInt("Max Bounces", (s32 *) &config.max_bounces, 1.0f, 1, 20);
+            ImGui::DragInt("Rpp", (s32 *) &config.rays_per_pixel, 2.0f, 16, 1024);
 
 			for (s32 i = 0; i < scene.num_materials; ++i) {
 				Material *mat = &scene.materials[i];

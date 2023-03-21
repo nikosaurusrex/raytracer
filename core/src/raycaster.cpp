@@ -1,5 +1,6 @@
 #include "raycaster.h"
 
+#include <ctime>
 #include <stdlib.h>
 #include <thread>
 #include <vector>
@@ -24,7 +25,9 @@ u64 get_real_time() {
 #include <sys/time.h>
 
 u64 get_cpu_time() {
-	return clock();
+	struct timespec timespec;
+	clock_gettime(_CLOCK_PROCESS_CPUTIME_ID, &timespec);
+	return timespec.tv_nsec;
 }
 
 u64 get_real_time() {
@@ -180,6 +183,8 @@ RayCastConfig ray_cast_config_default() {
 	config.width = 400;
 	config.height = 300;
 	config.sky_color = vec3(0.5f, 0.7f, 1.0f);
+	config.max_bounces = 2;
+	config.rays_per_pixel = 32;
 
 	return config;
 }
@@ -303,8 +308,8 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *con
 
     queue->tile_index++;
 
-    u32 rays_per_pixel = 128;
-    u32 bounces = 8;
+    u32 rays_per_pixel = config->rays_per_pixel;
+    u32 bounces = config->max_bounces;
 
     for (u32 y = 0; y < tile->h; ++y) {
         for (u32 x = 0; x < tile->w; ++x) {
@@ -366,6 +371,10 @@ void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
     u32 tiles_y = (h + ts - 1) / ts;
     u32 tiles_count = tiles_x * tiles_y;
 
+	printf("Running raytracer on %d cores\n", config->cores);
+	printf("%d tiles (%dx%d)\n", tiles_count, ts, ts);
+	printf("%d rays per pixel, max %d bounces\n", config->rays_per_pixel, config->max_bounces);
+
     queue.tiles = (Tile *)malloc(tiles_count * sizeof(Tile));
     queue.tile_count = tiles_count;
     queue.tile_index = 0;
@@ -422,7 +431,7 @@ void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
 
 	u64 bounces = queue.total_bounces;
 	putc('\n', stdout);
-	printf("Raycasting took %llu ms\n", diff);
+	printf("Raytracing took %llu ms\n", diff);
     printf("Total bounces %llu\n", bounces);
     printf("Performance %fms/bounce\n", (f64)diff / (f64)bounces);
     printf("Performance %fcycles/bounce\n", (f64)diff_cpu_time / (f64)bounces);

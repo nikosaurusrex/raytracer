@@ -108,6 +108,8 @@ struct RayCastConfig {
 	u32 cores;
 	u32 width;
 	u32 height;
+	u32 rays_per_pixel;
+	u32 max_bounces;
 	v3 sky_color;
 };
 
