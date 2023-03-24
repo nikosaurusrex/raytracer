@@ -294,9 +294,9 @@ Hit scan_hit(Scene *scene, Ray *ray) {
     return hit;
 }
 
-void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config) {
+u64 raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config) {
     if (queue->tile_index >= queue->tile_count) {
-        return;
+        return 0;
     }
 
     Camera *camera = &scene->camera;
@@ -310,6 +310,8 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *con
 
     u32 rays_per_pixel = config->rays_per_pixel;
     u32 bounces = config->max_bounces;
+
+    u64 total_bounces = 0;
 
     for (u32 y = 0; y < tile->h; ++y) {
         for (u32 x = 0; x < tile->w; ++x) {
@@ -327,7 +329,7 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *con
                 Ray scattered;
 
                 for (u32 i = 0; i < bounces; ++i) {
-					queue->total_bounces++;
+					total_bounces++;
 
                     Hit hit = scan_hit(scene, &ray);
                     v3 p = ray.origin + hit.t * ray.dir;
@@ -358,6 +360,8 @@ void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *con
             data[yy * w + xx] = rgb_to_hex(output);
         }
     }
+
+    return total_bounces;
 }
 
 void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
@@ -404,9 +408,11 @@ void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
     
     std::vector<std::thread> threads;
 
+    std::atomic<u64> total_bounces = 0;
+
     auto loop = [&]() {
         while (queue.tile_index < queue.tile_count) {
-            raytrace_tile(&queue, scene, data, config);
+            total_bounces += raytrace_tile(&queue, scene, data, config);
 
             u32 percentage = (u32)((f32)(queue.tile_index + 0) / (f32)queue.tile_count * 100);
             printf("\rRaytrace %3d%%", percentage);
@@ -429,7 +435,7 @@ void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config) {
 	u64 diff = after - before;
 	u64 diff_cpu_time = after_cpu_time - before_cpu_time;
 
-	u64 bounces = queue.total_bounces;
+	u64 bounces = total_bounces;
 	putc('\n', stdout);
 	printf("Raytracing took %llu ms\n", diff);
     printf("Total bounces %llu\n", bounces);

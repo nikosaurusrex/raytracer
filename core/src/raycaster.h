@@ -101,7 +101,6 @@ struct WorkQueue {
 	u32 tile_count;
 
 	std::atomic<u32> tile_index;
-	std::atomic<u64> total_bounces;
 };
 
 struct RayCastConfig {
@@ -129,7 +128,7 @@ RayCastConfig ray_cast_config_default();
 f32 clamp(f32 v, f32 l, f32 h);
 u32 rgb_to_hex(v3 v);
 
-void raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config);
+u64 raytrace_tile(WorkQueue *queue, Scene *scene, u32 *data, RayCastConfig *config);
 
 void raytrace_data(Scene *scene, u32 *data, RayCastConfig *config);
 u32 *raytrace(Scene *scene, RayCastConfig *config);
